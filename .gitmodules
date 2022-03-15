@@ -1,0 +1,3 @@
+[submodule "nn/tsgrasp"]
+	path = nn/tsgrasp
+	url = git@github.com:playertr/tsgrasp.git
