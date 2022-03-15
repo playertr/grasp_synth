@@ -1,0 +1,21 @@
+<launch>
+
+    <!-- Add command-line arguments -->
+    <arg name="bag_name"
+        default="chair.bag"
+        doc="Name of point cloud to load. {chair, cluttered_scene, fork, goblet, mug, toilet}.bag" />
+
+    <arg name="top_k"
+        default="50"
+        doc="How many grasps to retrieve." />
+
+    <!-- Start find_grasps_server -->
+    <include file="$(find grasp_synth)/launch/grasp_server.launch"/>
+
+    <!-- Start  rviz, grasp_pose_to_marker_array, and find_grasps_client -->
+    <include file="$(find grasp_synth)/launch/grasp_client.launch">
+        <arg name="bag_name" value="$(arg bag_name)" />
+        <arg name="top_k" value="$(arg top_k)" />
+    </include>
+    
+</launch>

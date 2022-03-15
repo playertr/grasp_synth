@@ -1,0 +1,11 @@
+<launch>
+
+    <!-- Start the node that runs the grasp server -->
+    <node pkg="grasp_synth" type="find_grasp_server.py" name="find_grasp_server" />
+
+    <!-- Start a rosbridge server -->
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch">
+        <arg name="port" value="9090" />
+    </include>
+    
+</launch>
