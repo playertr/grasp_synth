@@ -36,7 +36,7 @@ reads a point cloud from a file and queries the `grasp_synth` node to identify g
 The identified grasps are shown in `rviz`. The command is shown below.
 
 ```
-roslaunch grasp_synth grasp_server_demo.launch bag_name:=mug.bag top_k=40
+roslaunch grasp_synth grasp_server_demo.launch bag_name:=mug.bag top_k:=40
 ```
 Any of the object point clouds from the `bags/` directory can be used, and any number of
 grasps from 1 to 90,000 is valid (though high numbers of grasps may display slowly.)
