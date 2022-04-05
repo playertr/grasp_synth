@@ -1,4 +1,10 @@
-sensor_msgs/PointCloud2 points
+# FindGrasps.srv
+# Service definition for find_grasp_server.py
+# Upon receipt of this message, the find_grasp_server node will use the latest
+# PointCloud2 from '/camera/depth/points' and find `top_k` grasp poses. The
+# PointCloud2 message's header is copied into the `grasps` item that is
+# returned.
+
 std_msgs/UInt32 top_k
 
 ---
