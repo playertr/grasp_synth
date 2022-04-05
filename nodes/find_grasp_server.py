@@ -40,11 +40,7 @@ pl_model.eval()
 gpu_mtx = Lock() # mutex so we only process one point cloud at a time
 latest_header = Header()
 
-ee_pose_msg = None
-
-def ee_pose_cb(msg):
-    global ee_pose_msg
-    ee_pose_msg = msg
+points = None # global PointCloud2 message
 
 import time
 class TimeIt:
@@ -262,9 +258,11 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
     """ Handle a FindGraspsRequest by identifying grasp poses in a point cloud,
     fulfilling the Service obligation from FindGrasps.srv.
     """
+    global points
+
     # identify grasp poses, confidences, and widths
     with gpu_mtx:
-        grasp_pose_mtxs, confs, widths = find_grasps(req.points, req.top_k.data)
+        grasp_pose_mtxs, confs, widths = find_grasps(points, req.top_k.data)
 
     with TimeIt("Sending response: "):
         # create list of ROS poses from the homogenous pose matrices
@@ -288,9 +286,15 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
 
         return FindGraspsResponse(grasps_msg)
 
+def pcl_cb(msg):
+    """ Callback for point cloud subscriber that sets the global point cloud variable. """
+    global points
+    points = msg
+
 def find_grasps_server():
     rospy.init_node('find_grasps_server')
     s = rospy.Service('find_grasps', FindGrasps, handle_find_grasps)
+    pcl_sub = rospy.Subscriber('/camera/depth/points', PointCloud2, pcl_cb, queue_size=1)
     print("Ready to find grasps.")
     rospy.spin()
     

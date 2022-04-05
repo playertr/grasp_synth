@@ -4,13 +4,14 @@ The service has the following inputs and outputs:
 
 > **Inputs:**
 >
-> * PointCloud2 from a depth camera.
 > * How many grasps to generate (`top_k`).
 >
 > **Outputs:**
 > * A Grasps message containing `top_k` different Grasp messages and their corresponding confidences.
 >   * Each Grasp message contains the gripper pose, approach direction, baseline direction, and width.
 >   * Each confidence is a floating-point value from 0 to 1.
+
+Upon receipt of this message, the find_grasp_server node will use the latest PointCloud2 from '/camera/depth/points' and find `top_k` grasp poses. The PointCloud2 message's header is copied into the `grasps` item that is returned.
 
 ## Installation
 Installing the neural network is quite involved because it requires many dependencies and some Python 
@@ -30,7 +31,7 @@ rosrun grasp_synth find_grasp_server.py
 ```
 after sourcing your workspace's `devel/setup.bash` and starting the `roscore`.
 
-### 1. Launching the demo:
+### 2. Launching the demo:
 To demonstrate the grasp synthesis functionality, there is a demo client that 
 reads a point cloud from a file and queries the `grasp_synth` node to identify grasps.
 The identified grasps are shown in `rviz`. The command is shown below.
@@ -43,7 +44,7 @@ grasps from 1 to 90,000 is valid (though high numbers of grasps may display slow
 
 ![rviz output](figs/rviz.png)
 
-### 1. Networked demo using ROS nodes:
+### 3. Networked demo using ROS nodes:
 First, clone and build this package into a ROS workspace on the separate client computer.
 
 Then plug the two computers in via ethernet cable and follow the instructions from [this webpage](https://github.com/brennanyama/RobotOperatingSystem/wiki/ROS-network-setup-between-two-devices-via-ethernet-cable)
@@ -64,7 +65,7 @@ roslaunch grasp_synth grasp_client.launch
 If the computers are properly networked (which is tough), then the same `rviz` output as before
 should appear on the client computer's screen.
 
-### 1. Networking using `rosbridge`:
+### 4. Networking using `rosbridge`:
 The `grasp_server.launch` launchfile starts a `rosbridge` server node, which should expose the FindGrasps service on port
 `localhost:9090`. However, I am not sure how to encode a `sensor_msgs/PointCloud2` into JSON, so I have not demoed that
 functionality.
