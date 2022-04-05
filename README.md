@@ -32,15 +32,20 @@ rosrun grasp_synth find_grasp_server.py
 after sourcing your workspace's `devel/setup.bash` and starting the `roscore`.
 
 ### 2. Launching the demo:
-To demonstrate the grasp synthesis functionality, there is a demo client that 
-reads a point cloud from a file and queries the `grasp_synth` node to identify grasps.
-The identified grasps are shown in `rviz`. The command is shown below.
+To demonstrate the grasp synthesis functionality, there is a demo that launches several processes:
+* the grasp synthesis service node, called `find_grasp_server.py`.
+* a node called `depth_cam_emulator.py` to read point clouds from a rosbag and publish them to the topic `camera/depth/points`.
+* a client node called `find_grasp_client.py` to request grasps over the ROS service
+* the `rviz` GUI for visualization.
+* a node called `grasp_pose_to_marker_array.py` publishing a MarkerArray for rviz visualization.
+
+The command is shown below.
 
 ```
 roslaunch grasp_synth grasp_server_demo.launch bag_name:=mug.bag top_k:=40
 ```
 Any of the object point clouds from the `bags/` directory can be used, and any number of
-grasps from 1 to 90,000 is valid (though high numbers of grasps may display slowly.)
+grasps from 1 to 90,000 is valid (though high numbers of grasps may display slowly.) The output is shown below.
 
 ![rviz output](figs/rviz.png)
 
