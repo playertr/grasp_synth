@@ -260,6 +260,10 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
     """
     global points
 
+    if points is None:
+        rospy.logwarn('Point cloud is not published yet.')
+        return
+
     # identify grasp poses, confidences, and widths
     with gpu_mtx:
         grasp_pose_mtxs, confs, widths = find_grasps(points, req.top_k.data)
@@ -280,7 +284,7 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
 
         # make a plural Grasps message containing the header and confidences
         grasps_msg = Grasps()
-        grasps_msg.header = req.points.header
+        grasps_msg.header = points.header
         grasps_msg.grasps = grasps_list
         grasps_msg.confs  = confs.cpu().numpy()
 
