@@ -2,7 +2,7 @@
 
     <!-- Define command line arguments -->
     <arg name="bag_name"
-        default="chair.bag"
+        default="goblet.bag"
         doc="Name of point cloud to load. {chair, cluttered_scene, fork, goblet, mug, toilet}.bag" />
 
     <arg name="top_k"

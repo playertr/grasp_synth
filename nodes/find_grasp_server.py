@@ -266,7 +266,7 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
 
     # identify grasp poses, confidences, and widths
     with gpu_mtx:
-        grasp_pose_mtxs, confs, widths = find_grasps(points, req.top_k.data)
+        grasp_pose_mtxs, confs, widths = find_grasps(points, req.top_k)
 
     with TimeIt("Sending response: "):
         # create list of ROS poses from the homogenous pose matrices

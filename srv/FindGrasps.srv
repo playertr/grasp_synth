@@ -5,7 +5,8 @@
 # PointCloud2 message's header is copied into the `grasps` item that is
 # returned.
 
-std_msgs/UInt32 top_k
+# std_msgs/UInt32 top_k
+int32 top_k
 
 ---
 
