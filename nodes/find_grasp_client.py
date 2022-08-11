@@ -11,7 +11,7 @@ import sys
 def find_grasps_client(top_k: int):
     try:
         find_grasps = rospy.ServiceProxy('find_grasps', FindGrasps)
-        return find_grasps(UInt32(top_k))
+        return find_grasps(top_k)
     except rospy.ServiceException as e:
         print(e)
 
