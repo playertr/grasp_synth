@@ -53,6 +53,7 @@ add_message_files(
   FILES
   Grasp.msg
   Grasps.msg
+  Grasps2.msg
 )
 
 ## Generate services in the 'srv' folder
