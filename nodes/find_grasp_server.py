@@ -1,10 +1,10 @@
-#! /home/rdml/miniconda3/envs/tsgrasp/bin/python
+#! /home/playert/miniconda3/envs/tsgrasp/bin/python
 # shebang is for the Python3 environment with all dependencies
 
 # tsgrasp dependencies
 import sys
 from typing import List
-sys.path.append("/home/rdml/Research/grasp_synth_ws/src/grasp_synth/")
+sys.path.append("/home/playert/Research/grasp_synth_ws/src/grasp_synth/")
 from nn.load_model import load_model
 
 # ROS dependencies
@@ -13,7 +13,7 @@ from geometry_msgs.msg import Pose, Vector3
 from std_msgs.msg import Header
 from sensor_msgs.msg import PointCloud2
 import ros_numpy
-from grasp_synth.msg import Grasp, Grasps
+from grasp_synth.msg import Grasp, Grasps, Grasps2
 from grasp_synth.srv import FindGrasps, FindGraspsRequest, FindGraspsResponse
 
 # python dependencies
@@ -30,7 +30,7 @@ torch.backends.cudnn.benchmark=True # makes a big difference on FPS for some PTS
 PTS_PER_FRAME   = 45000
 GRIPPER_DEPTH   = 0.1034
 CONF_THRESHOLD  = 0
-TOP_K           = 400
+TOP_K           = 500
 
 ## load Pytorch Lightning network
 device = torch.device('cuda')
@@ -41,6 +41,9 @@ gpu_mtx = Lock() # mutex so we only process one point cloud at a time
 latest_header = Header()
 
 points = None # global PointCloud2 message
+filtered_grasps = None # global Grasps2 message
+
+unfiltered_grasp_pub = rospy.Publisher("unfiltered_grasps", Grasps2, queue_size=10)
 
 import time
 class TimeIt:
@@ -258,7 +261,7 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
     """ Handle a FindGraspsRequest by identifying grasp poses in a point cloud,
     fulfilling the Service obligation from FindGrasps.srv.
     """
-    global points
+    global points, filtered_grasps, unfiltered_grasp_pub
 
     if points is None:
         rospy.logwarn('Point cloud is not published yet.')
@@ -266,15 +269,38 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
 
     # identify grasp poses, confidences, and widths
     with gpu_mtx:
-        grasp_pose_mtxs, confs, widths = find_grasps(points, req.top_k)
+        grasp_pose_mtxs, confs, widths = find_grasps(points, TOP_K) # first apply top-400 filtering to send to kin_feas_filter
 
     with TimeIt("Sending response: "):
         # create list of ROS poses from the homogenous pose matrices
         grasp_poses = homo_poses_to_ros_poses(grasp_pose_mtxs)
 
+        # publish the grasps for kinematic feasibility filtering
+        unfiltered_grasps = Grasps2()
+        unfiltered_grasps.confs = confs
+        unfiltered_grasps.poses = grasp_poses
+        unfiltered_grasps.header = points.header
+        unfiltered_grasp_pub.publish(unfiltered_grasps)
+
+        rospy.loginfo(f"Checking the feasibility of {len(unfiltered_grasps.poses)} grasps.")
+
+        # wait for the filtered, kinematically feasible grasps to return
+        r = rospy.Rate(5)
+        timeout = rospy.Duration(15)
+        start = rospy.Time.now()
+        while filtered_grasps is None:
+            if rospy.Time.now() - start > timeout:
+                e = rospy.ServiceException(f"Did not filter grasps within {timeout.secs} seconds.")
+                print(e)
+                raise e
+            r.sleep()
+
+        rospy.loginfo(f"There are {len(filtered_grasps.poses)} kinematically feasible grasps. Keeping {min(len(filtered_grasps.poses), req.top_k)} of them.")
+
+
         # collect the grasp poses into a list of Grasp messages
         grasps_list = []
-        for matrix, pose, width in zip(grasp_pose_mtxs, grasp_poses, widths):
+        for matrix, pose, width in zip(grasp_pose_mtxs, filtered_grasps.poses[:req.top_k], filtered_grasps.widths[:req.top_k]):
             g = Grasp()
             g.pose = pose
             g.approach = Vector3(*matrix[:3, 2].cpu().numpy())
@@ -288,6 +314,8 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
         grasps_msg.grasps = grasps_list
         grasps_msg.confs  = confs.cpu().numpy()
 
+        filtered_grasps = None # reset filtered_grasps to be None for next time
+
         return FindGraspsResponse(grasps_msg)
 
 def pcl_cb(msg):
@@ -295,10 +323,16 @@ def pcl_cb(msg):
     global points
     points = msg
 
+def filtered_grasps_cb(msg):
+    global filtered_grasps
+    filtered_grasps = msg
+
 def find_grasps_server():
     rospy.init_node('find_grasps_server')
     s = rospy.Service('find_grasps', FindGrasps, handle_find_grasps)
     pcl_sub = rospy.Subscriber('/camera/depth/points', PointCloud2, pcl_cb, queue_size=1)
+    filtered_grasp_sub = rospy.Subscriber('/filtered_grasps', Grasps2, filtered_grasps_cb, queue_size=1)
+
     print("Ready to find grasps.")
     rospy.spin()
     
