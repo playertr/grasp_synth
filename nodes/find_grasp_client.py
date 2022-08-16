@@ -27,6 +27,8 @@ if __name__ == "__main__":
     grasp_pub = rospy.Publisher('grasp_synth/grasps', Grasps, queue_size=10)
     rospy.wait_for_service('find_grasps')
 
+    import time; time.sleep(4)
+
     # request grasps using the service
     resp = find_grasps_client(top_k)
 
