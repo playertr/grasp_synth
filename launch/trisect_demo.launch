@@ -5,7 +5,7 @@
         doc="How many grasps to retrieve." />
 
     <node pkg="topic_tools" type="relay" name="point_cloud_relayer"
-        args="passthrough/output point_cloud"
+        args="points2 point_cloud"
     />
 
     <!-- Ensure trisect camera is started, per notes.md -->
@@ -32,8 +32,10 @@
     <node  pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find grasp_synth)/config/visualize_grasps.rviz"/>
 
     <!-- Start node to transform grasp poses into 3D markers for rviz -->
-    <node pkg="grasp_synth" type="grasp_pose_to_marker_array.py" name="grasp_pose_to_marker_array" />
-    
+    <node pkg="grasp_synth" type="grasp_pose_to_marker_array.py" name="grasp_pose_to_marker_array" launch-prefix="xterm -hold -e">         
+        <remap from="grasps" to="/filtered_grasps"/>
+        <remap from="grasp_pose_markers" to="grasp_synth/filtered_grasp_pose_markers"/>
+    </node>
     <!-- show invalid grasps in red -->
     <!-- "(255.0, 0.0, 0.0, 0.05) -->
     <node pkg="grasp_synth" type="grasps2_to_marker_array.py" name="unfiltered_pose_array" launch-prefix="xterm -hold -e" args='--color "(255.0, 0.0, 0.0, 0.2)"' >

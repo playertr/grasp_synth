@@ -10,7 +10,7 @@ from nn.load_model import load_model
 
 # ROS dependencies
 import rospy
-from geometry_msgs.msg import Pose, Vector3
+from geometry_msgs.msg import Pose, Vector3, PoseArray, PoseStamped
 from std_msgs.msg import Header
 from sensor_msgs.msg import PointCloud2
 from rospy.numpy_msg import numpy_msg
@@ -61,6 +61,8 @@ tf_helper = TFHelper()
 
 unfiltered_grasp_pub = rospy.Publisher("unfiltered_grasps", Grasps2, queue_size=10)
 filtered_grasps = None
+filtered_grasp_pub = rospy.Publisher('filtered_grasps', Grasps, queue_size=10)
+grasp_pose_pub = rospy.Publisher('filtered_grasp_poses', PoseArray, queue_size=10)
 
 import time
 class TimeIt:
@@ -126,13 +128,7 @@ def inverse_homo(tf):
     )
 
 def transform_to_eq_pose(poses):
-    """Apply the static frame transformation between the network output and the 
-    input expected by the servoing logic at /panda/cartesian_impendance_controller/equilibrium_pose.
-    
-    The servoing pose is at the gripper pads, and is rotated, while the network output is at the wrist.
-    
-    This is an *intrinsic* pose transformation, where each grasp pose moves a fixed amount relative to 
-    its initial pose, so we right-multiply instead of left-multiply."""
+    """Yaw by pi/2"""
 
     roll, pitch, yaw = TF_ROLL, TF_PITCH, TF_YAW
     x, y, z = TF_X, TF_Y, TF_Z
@@ -411,6 +407,14 @@ def ensure_grasp_y_axis_upward(grasps: torch.Tensor) -> torch.Tensor:
     grasps[:,:3,:3] = torch.bmm(grasps[:,:3,:3], tfs)
     return grasps
 
+def sort_grasps(grasps, confs, widths):
+    vals, idcs = torch.sort(confs, descending=True)
+    grasps = grasps[idcs]
+    confs = confs[idcs]
+    widths = widths[idcs]
+
+    return grasps, confs, widths
+
     
 @torch.inference_mode()
 def find_grasps():
@@ -497,6 +501,8 @@ def find_grasps():
         with TimeIt('Transform to eq pose'):
             grasps = transform_to_eq_pose(grasps)
 
+        grasps, confs, widths = sort_grasps(grasps, confs, widths)
+
         return grasps, confs, widths, header
         
 # https://robotics.stackexchange.com/questions/20069/are-rospy-subscriber-callbacks-executed-sequentially-for-a-single-topic
@@ -558,11 +564,13 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
         # create list of ROS poses from the homogenous pose matrices
         grasp_poses = homo_poses_to_ros_poses(grasp_pose_mtxs)
 
+        print(f"A: Conf min: {confs.min()}.\nConf max: {confs.max()}")
+
         # publish the grasps for kinematic feasibility filtering
         unfiltered_grasps = Grasps2()
-        unfiltered_grasps.confs = confs
+        unfiltered_grasps.confs = confs.cpu().numpy()
         unfiltered_grasps.poses = grasp_poses
-        unfiltered_grasps.widths = widths
+        unfiltered_grasps.widths = widths.cpu().numpy()
         unfiltered_grasps.header = header
         unfiltered_grasp_pub.publish(unfiltered_grasps)
 
@@ -581,6 +589,7 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
 
         rospy.loginfo(f"There are {len(filtered_grasps.poses)} kinematically feasible grasps. Keeping {min(len(filtered_grasps.poses), req.top_k)} of them.")
 
+        print(f"B: Conf min: {np.min(filtered_grasps.confs)}.\nConf max: {np.max(filtered_grasps.confs)}")
 
         # collect the grasp poses into a list of Grasp messages
         grasps_list = []
@@ -600,7 +609,16 @@ def handle_find_grasps(req: FindGraspsRequest) -> FindGraspsResponse:
         grasps_msg.grasps = grasps_list
         grasps_msg.confs  = filtered_grasps.confs
 
+        p = PoseArray()
+        p.poses = filtered_grasps.poses
+        p.header = filtered_grasps.header
+        grasp_pose_pub.publish(p)
+
         filtered_grasps = None # reset filtered_grasps to be None for next time
+
+        print(f"Grasps Response message:\n{grasps_msg}")
+
+        filtered_grasp_pub.publish(grasps_msg)
 
         return FindGraspsResponse(grasps_msg)
 
@@ -610,7 +628,7 @@ def filtered_grasps_cb(msg):
 
 def find_grasps_server():
     s = rospy.Service('find_grasps', FindGrasps, handle_find_grasps)
-    pcl_sub = rospy.Subscriber('/camera/depth/points', PointCloud2, depth_callback, queue_size=1)
+    pcl_sub = rospy.Subscriber('/trisect/stereo/points2', PointCloud2, depth_callback, queue_size=1) # /camera/depth/points
     filtered_grasp_sub = rospy.Subscriber('/filtered_grasps', Grasps2, filtered_grasps_cb, queue_size=1)
 
     print("Ready to find grasps.")

@@ -1,0 +1,24 @@
+<launch>
+
+    <arg name="top_k"
+        default="50"
+        doc="How many grasps to retrieve." />
+
+    <!-- Ensure trisect camera is started, per notes.md -->
+    <node pkg="topic_tools" type="relay" name="relay" args="/point_cloud /camera/depth/points"/>
+
+    <!-- Start find_grasps_server -->
+    <include file="$(find grasp_synth)/launch/grasp_server.launch"/>
+
+    <!-- Start rviz for visualization, using our config. -->
+    <node  pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find grasp_synth)/config/visualize_grasps.rviz"/>
+
+    <!-- Start node to transform grasp poses into 3D markers for rviz -->
+    <node pkg="grasp_synth" type="grasp_pose_to_marker_array.py" name="grasp_pose_to_marker_array" />
+
+    <!-- Start node to read point clouds, request grasps, and publish the grasps to the 
+    `grasp_synth/grasps` topic. -->
+    <node pkg="grasp_synth" type="find_grasp_client.py" name="find_grasp_client" 
+        args="$(arg top_k)"/>
+
+</launch>

@@ -8,13 +8,13 @@ from grasp_synth.msg import Grasps
 from visualization_msgs.msg import Marker, MarkerArray
 from matplotlib import cm
 
-marker_array_pub = rospy.Publisher('/grasp_synth/grasp_pose_markers', MarkerArray, queue_size=100)
+marker_array_pub = rospy.Publisher('/grasp_synth/filtered_grasp_pose_markers', MarkerArray, queue_size=100)
     
 def gripper_marker():
     marker = Marker()
     marker.type = marker.MESH_RESOURCE
     marker.action = marker.MODIFY
-    marker.mesh_resource = "package://grasp_synth/urdf/gripper.stl"
+    marker.mesh_resource = "package://grasp_synth/urdf/gripper_yawed.stl"
     marker.scale.x = 1.0
     marker.scale.y = 1.0
     marker.scale.z = 1.0
@@ -53,7 +53,7 @@ def poses_cb(msg):
     marker_array_pub.publish(marker_array)
 
 rospy.init_node('publish_grasp_markers')
-rospy.Subscriber('/grasp_synth/grasps', Grasps, poses_cb, queue_size=1)
+rospy.Subscriber('/filtered_grasps', Grasps, poses_cb, queue_size=1)
 
 rospy.loginfo('Ready to grasp markers.')
 rospy.spin()

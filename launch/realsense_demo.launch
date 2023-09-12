@@ -1,0 +1,34 @@
+<launch>
+
+    <!-- Add command-line arguments -->
+    <arg name="bag_name"
+        default="chair.bag"
+        doc="Name of point cloud to load. {chair, cluttered_scene, fork, goblet, mug, toilet}.bag" />
+
+    <arg name="top_k"
+        default="50"
+        doc="How many grasps to retrieve." />
+
+    <!-- Start find_grasps_server -->
+    <include file="$(find grasp_synth)/launch/grasp_server.launch"/>
+
+
+    <!-- Start a real depth cam node -->
+    <remap from="/camera/depth/color/points" to="/camera/depth/points"/>
+    <include file="$(find realsense2_camera)/launch/rs_camera.launch">
+        <arg name="enable_pointcloud" value="true" />
+    </include>
+
+    <!-- Start rviz for visualization, using our config. -->
+    <node  pkg="rviz" type="rviz" output="screen" name="rviz" args="-d $(find grasp_synth)/config/visualize_grasps.rviz"/>
+
+    <!-- Start node to transform grasp poses into 3D markers for rviz -->
+    <node pkg="grasp_synth" type="grasp_pose_to_marker_array.py" name="grasp_pose_to_marker_array" />
+    
+    <!-- Start node to read point clouds, request grasps, and publish the grasps to the 
+    `grasp_synth/grasps` topic. -->
+    <node pkg="grasp_synth" type="find_grasp_client.py" name="find_grasp_client" 
+        args="$(arg top_k)" />
+        
+    
+</launch>
